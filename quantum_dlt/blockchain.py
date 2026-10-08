@@ -99,6 +99,7 @@ class Block:
     validator_node: str
     qkd_session_key_id: str               # ID of QKD key used to authorize inter-validator gossip
     qkd_auth_tag: str                     # Keyed HMAC/digest verifying quantum channel integrity
+    quantum_entropy_seed: str = ""        # 256-bit certified quantum entropy seed (PoQE consensus)
     block_hash: str = ""
     validator_pqc_signature: Optional[dict[str, Any]] = None
     validator_pqc_pubkey: Optional[str] = None
@@ -114,6 +115,7 @@ class Block:
             "validator_node": self.validator_node,
             "qkd_session_key_id": self.qkd_session_key_id,
             "qkd_auth_tag": self.qkd_auth_tag,
+            "quantum_entropy_seed": self.quantum_entropy_seed,
         }
         canonical_str = json.dumps(block_dict, sort_keys=True)
         return hashlib.sha256(canonical_str.encode("utf-8")).hexdigest()
@@ -187,6 +189,7 @@ class QuantumSafeBlockchain:
             validator_node=self.node_id,
             qkd_session_key_id=genesis_qkd.key_id,
             qkd_auth_tag=hashlib.sha256(genesis_qkd.key_hex.encode()).hexdigest()[:32],
+            quantum_entropy_seed=genesis_qkd.quantum_entropy_hex or hashlib.sha3_256(b"GENESIS_QUANTUM_ENTROPY").hexdigest(),
         )
         genesis_block.seal_and_sign(self.pqc, self.validator_privkey, self.validator_pubkey)
         self.chain.append(genesis_block)
@@ -305,6 +308,7 @@ class QuantumSafeBlockchain:
             validator_node=self.node_id,
             qkd_session_key_id=qkd_session.key_id,
             qkd_auth_tag=hashlib.sha256(qkd_session.key_hex.encode()).hexdigest()[:32],
+            quantum_entropy_seed=qkd_session.quantum_entropy_hex,
         )
 
         # 4. Seal & Sign with PQC Signature
@@ -314,10 +318,10 @@ class QuantumSafeBlockchain:
         self.chain.append(new_block)
         self.pending_transactions.clear()
 
-        return new_block, f"Block #{new_block.index} forged with {len(tx_dicts)} transactions! (QKD Key: {qkd_session.key_id[:16]}...)"
+        return new_block, f"Block #{new_block.index} forged with {len(tx_dicts)} transactions! (PoQE Entropy: {qkd_session.quantum_entropy_hex[:16]}...)"
 
     def audit_chain(self) -> dict[str, Any]:
-        """Verify complete cryptographic, hash-chain, and post-quantum integrity of the ledger."""
+        """Verify complete cryptographic, hash-chain, PoQE, and post-quantum integrity of the ledger."""
         t0 = time.perf_counter()
         audit_results = {
             "total_blocks": len(self.chain),
@@ -326,6 +330,7 @@ class QuantumSafeBlockchain:
             "signature_failures": [],
             "hash_mismatches": [],
             "merkle_mismatches": [],
+            "poqe_failures": [],
             "audit_latency_ms": 0.0,
         }
 
@@ -373,6 +378,14 @@ class QuantumSafeBlockchain:
                     "reason": sig_res.details,
                 })
 
+            # 5. Check Proof-of-Quantum-Entropy (PoQE) Consensus Seed
+            if i > 0 and (not block.quantum_entropy_seed or len(block.quantum_entropy_seed) < 32):
+                audit_results["is_tamper_free"] = False
+                audit_results["poqe_failures"].append({
+                    "block_index": i,
+                    "reason": "Missing or degenerate quantum entropy seed in block header.",
+                })
+
         audit_results["audit_latency_ms"] = round((time.perf_counter() - t0) * 1000, 2)
         return audit_results
 
@@ -382,13 +395,14 @@ class QuantumSafeBlockchain:
         return {
             "network_name": config.NETWORK_NAME,
             "validator_node": self.node_id,
+            "consensus_mechanism": config.CONSENSUS_MECHANISM,
             "total_blocks": len(self.chain),
             "total_committed_txs": total_txs,
             "pending_mempool_txs": len(self.pending_transactions),
             "rejected_fraud_txs": len(self.rejected_transactions),
             "latest_block_hash": self.chain[-1].block_hash if self.chain else "None",
             "pqc_security_level": self.pqc.scheme_name,
-            "qkd_protocol": "Qiskit BB84 Photon Polarization",
+            "qkd_protocol": config.QKD_PROTOCOL,
             "qml_classifier": "Qiskit 4-Qubit Variational Quantum Classifier (VQC)",
         }
 

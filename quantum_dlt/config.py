@@ -18,13 +18,21 @@ LATTICE_MODULUS_Q = 8380417
 PQC_SECURITY_LEVEL = "NIST Level 3 (AES-192 equivalent post-quantum)"
 
 # -----------------------------------------------------------------------------
-# 2. Qiskit Quantum Key Distribution (QKD) Parameters
+# 2. Qiskit Quantum Key Distribution (QKD) & Decoy-State Parameters
 # -----------------------------------------------------------------------------
-QKD_PROTOCOL = "BB84 Protocol (Bennett-Brassard 1984)"
+QKD_PROTOCOL = "Decoy-State BB84 Protocol (Hwang / Lo-Ma-Chen 3-Intensity)"
 QKD_DEFAULT_PHOTONS = 64
 QKD_QBER_ABORT_THRESHOLD = 0.110  # 11% theoretical intercept-resend eavesdropping threshold
 QKD_BASIS_RECTILINEAR = 0         # Computational (Z) basis {|0>, |1>}
 QKD_BASIS_DIAGONAL = 1            # Hadamard (X) basis {|+>, |->}
+
+# 3-Intensity Decoy-State parameters (defeats Photon-Number-Splitting / PNS attacks)
+QKD_USE_DECOY_STATES = True
+QKD_MU_SIGNAL = 0.50              # Mean photon number for signal states
+QKD_NU_DECOY = 0.10               # Mean photon number for decoy states
+QKD_OMEGA_VACUUM = 0.00           # Vacuum state intensity
+QISKIT_OPTIMIZATION_LEVEL = 3     # Qiskit Transpiler Level 3 (gate-depth optimization)
+CONSENSUS_MECHANISM = "Proof-of-Quantum-Entropy (PoQE)"
 
 # -----------------------------------------------------------------------------
 # 3. Qiskit Quantum Machine Learning (QML) Detector Parameters

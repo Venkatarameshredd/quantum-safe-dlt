@@ -69,6 +69,8 @@ class TestQiskitBB84QKD:
         assert session.qber < config.QKD_QBER_ABORT_THRESHOLD
         assert session.key_hex.startswith("0xQKD_")
         assert session.key_length_bits == 256
+        assert len(session.quantum_entropy_hex) == 64
+        assert session.decoy_protocol_active is True
 
     def test_eavesdropping_interception_and_abort(self):
         qkd = get_qkd_engine()

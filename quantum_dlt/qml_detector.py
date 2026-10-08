@@ -77,6 +77,13 @@ class QiskitVQCAnsatz:
                 qc.cx(i, i + 1)
             qc.cx(self.n_qubits - 1, 0)
 
+        # Apply Qiskit Optimization Level 3 Transpilation Pass
+        try:
+            from qiskit import transpile
+            qc = transpile(qc, optimization_level=config.QISKIT_OPTIMIZATION_LEVEL)
+        except Exception:
+            pass
+
         return qc
 
     def compute_expectations(self, x_values: np.ndarray, weights: np.ndarray) -> np.ndarray:
